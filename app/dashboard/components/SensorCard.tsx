@@ -192,3 +192,4 @@ export default function SensorCard(props: SensorCardProps) {
   )
 }
 // hydration fix
+// NPK sensor card

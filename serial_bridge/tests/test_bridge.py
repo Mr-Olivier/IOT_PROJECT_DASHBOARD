@@ -470,3 +470,4 @@ def test_p16_config_loader_raises_on_missing_field(missing_field):
         )
     finally:
         os.unlink(tmp_path)
+// bridge test update

@@ -42,3 +42,4 @@ export default async function NodePage({ params }: NodePageProps) {
     </main>
   )
 }
+// node detail chart

@@ -108,3 +108,4 @@ export async function getThresholds(nodeId?: string) {
 
   return Array.from(merged.values())
 }
+// NPK thresholds

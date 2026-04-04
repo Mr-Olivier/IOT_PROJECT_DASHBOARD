@@ -191,3 +191,4 @@ export default function SensorCard(props: SensorCardProps) {
     </div>
   )
 }
+// hydration fix

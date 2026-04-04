@@ -1,0 +1,85 @@
+# Serial Bridge Configuration
+# ============================================================
+# This file configures the Python serial bridge that reads
+# sensor data from the Arduino and forwards it to the API.
+# ============================================================
+
+# Serial port the Arduino is connected to.
+# Linux/macOS: /dev/ttyUSB0, /dev/ttyACM0
+# Windows:     COM3, COM4, etc.
+# Example: /dev/ttyUSB0
+serial_port: COM6
+
+# Baud rate for serial communication. Must match the Arduino sketch.
+# Valid values: 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200
+# Example: 9600
+baud_rate: 9600
+
+# Full URL of the ingest endpoint on the Next.js API server.
+# Example: http://localhost:3000/api/ingest
+# Example (production): https://your-domain.com/api/ingest
+api_url: http://localhost:3000/api/ingest
+
+# API key sent in the X-API-Key request header for authentication.
+# Must match the API_KEY environment variable set on the server.
+# Example: my-secret-key-abc123
+api_key: aquasense-demo-key-123
+
+# Node identifier that must match a registered node slug in the database.
+# This value is also expected as the first field in each Arduino CSV line.
+# Example: arduino-node-1
+node_id: node-1
+
+# Interval between readings in milliseconds (simulation mode only).
+# In live mode the interval is determined by the Arduino sketch loop delay.
+# Valid range: 100–60000 ms
+# Example: 2000 (2 seconds)
+interval_ms: 2000
+
+# Set to true to run in simulation mode (no serial port required).
+# Generates synthetic sensor readings for testing and development.
+# Valid values: true, false
+# Example: false
+simulation: false
+
+# Calibration offsets and scale factors applied to each sensor metric.
+# Formula: calibrated_value = (raw_value + offset) * scale
+# Use offset to correct for a constant bias (e.g., thermometer reads +2°C high → offset: -2).
+# Use scale to correct for a gain error (e.g., sensor reads 10% low → scale: 1.1).
+# Default values (offset: 0, scale: 1.0) apply no correction.
+calibration:
+
+  # Soil moisture — percentage [0, 100] %
+  soilMoisture:
+    offset: 0    # Additive correction applied before scaling. Example: -5
+    scale: 1.0   # Multiplicative correction. Example: 1.05
+
+  # Air temperature — degrees Celsius [-40, 80] °C
+  temperature:
+    offset: 0    # Additive correction applied before scaling. Example: -2
+    scale: 1.0   # Multiplicative correction. Example: 1.0
+
+  # Relative humidity — percentage [0, 100] %
+  humidity:
+    offset: 0    # Additive correction applied before scaling. Example: 3
+    scale: 1.0   # Multiplicative correction. Example: 0.98
+
+  # Reservoir water level — centimetres [0, 400] cm
+  reservoirLevel:
+    offset: 0    # Additive correction applied before scaling. Example: 1
+    scale: 1.0   # Multiplicative correction. Example: 1.0
+
+  # Nitrogen concentration — milligrams per kilogram [0, 1999] mg/kg
+  nitrogen:
+    offset: 0    # Additive correction applied before scaling. Example: 10
+    scale: 1.0   # Multiplicative correction. Example: 1.0
+
+  # Phosphorus concentration — milligrams per kilogram [0, 1999] mg/kg
+  phosphorus:
+    offset: 0    # Additive correction applied before scaling. Example: 5
+    scale: 1.0   # Multiplicative correction. Example: 1.0
+
+  # Potassium concentration — milligrams per kilogram [0, 1999] mg/kg
+  potassium:
+    offset: 0    # Additive correction applied before scaling. Example: 0
+    scale: 1.0   # Multiplicative correction. Example: 1.0

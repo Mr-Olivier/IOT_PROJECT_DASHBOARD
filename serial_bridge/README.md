@@ -152,3 +152,4 @@ After calibration, values are clamped to their valid ranges. A warning is logged
 | `ModuleNotFoundError: No module named 'serial'` | pyserial not installed | Run `pip install pyserial` |
 | `ModuleNotFoundError: No module named 'yaml'` | pyyaml not installed | Run `pip install pyyaml` |
 | `ModuleNotFoundError: No module named 'requests'` | requests not installed | Run `pip install requests` |
+// bridge README update

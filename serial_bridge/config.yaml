@@ -83,3 +83,4 @@ calibration:
   potassium:
     offset: 0    # Additive correction applied before scaling. Example: 0
     scale: 1.0   # Multiplicative correction. Example: 1.0
+// COM6 config

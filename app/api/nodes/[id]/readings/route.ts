@@ -48,3 +48,4 @@ export async function GET(
     return NextResponse.json({ error: 'internal' }, { status: 500 })
   }
 }
+// readings NPK

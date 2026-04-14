@@ -69,9 +69,9 @@ export default function TimeSeriesChart({
 }: TimeSeriesChartProps) {
   if (readings.length === 0) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-        <h3 className="text-gray-700 font-medium text-sm mb-4">{title}</h3>
-        <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 className="text-gray-700 font-semibold text-sm mb-4">{title}</h3>
+        <div className="flex items-center justify-center h-48 text-gray-300 text-sm">
           No data available for this period
         </div>
       </div>
@@ -95,21 +95,31 @@ export default function TimeSeriesChart({
   }))
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-      <h3 className="text-gray-700 font-medium text-sm mb-4">{title}</h3>
+    <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+      {/* Card header with gradient accent */}
+      <div className="flex items-center gap-2 mb-4">
+        <span
+          className="w-3 h-3 rounded-full shrink-0"
+          style={{ backgroundColor: color }}
+        />
+        <h3 className="text-gray-800 font-semibold text-sm">{title}</h3>
+        <span className="ml-auto text-xs text-gray-400">
+          {readings.length.toLocaleString()} pts
+        </span>
+      </div>
       <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <LineChart data={data} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
           <XAxis
             dataKey="ts"
             tickFormatter={(ts) => formatXAxis(ts, rangeMs)}
             tick={{ fill: '#9ca3af', fontSize: 11 }}
-            axisLine={{ stroke: '#e5e7eb' }}
+            axisLine={false}
             tickLine={false}
           />
           <YAxis
             tick={{ fill: '#9ca3af', fontSize: 11 }}
-            axisLine={{ stroke: '#e5e7eb' }}
+            axisLine={false}
             tickLine={false}
             width={40}
             tickFormatter={(v) => `${v}`}
@@ -117,11 +127,11 @@ export default function TimeSeriesChart({
           <Tooltip
             contentStyle={{
               backgroundColor: '#ffffff',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
+              border: '1px solid #f3f4f6',
+              borderRadius: '12px',
               color: '#111827',
               fontSize: 12,
-              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+              boxShadow: '0 8px 24px 0 rgba(0,0,0,0.08)',
             }}
             labelFormatter={(ts) => formatTooltipLabel(ts)}
             formatter={(value: number) => [`${value} ${unit}`, title]}
@@ -130,9 +140,9 @@ export default function TimeSeriesChart({
             type="monotone"
             dataKey="value"
             stroke={color}
-            strokeWidth={2}
+            strokeWidth={2.5}
             dot={false}
-            activeDot={{ r: 4, fill: color }}
+            activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: '#fff' }}
           />
         </LineChart>
       </ResponsiveContainer>

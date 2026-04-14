@@ -274,72 +274,57 @@ def validate_startup(cfg: AppConfig) -> None:
 
 def parse_line(line: str) -> Optional[dict]:
     """
-    Parse a human-readable line from the Arduino serial output.
-    Matches the format:
-        Soil Value  : 430  -> DRY
-        Temperature : 24.50 C
-        Humidity    : 62.00 %
-        Tank Dist   : 18.30 cm  -> OK
-        Nitrogen  N : 26  -> OK
-        Phosphorus P: 0  -> LOW
-        Potassium  K: 0  -> LOW
+    Parse the CSV data line emitted by sendSerialData() in the Arduino sketch.
+    Format: soilValue,temperature,humidity,distance,N,P,K
+    Example: 430,24.50,62.00,18.30,26,0,0
 
-    Accumulates values across lines. Returns a complete reading dict
-    when all 7 values are collected, otherwise returns None.
+    All other human-readable / status lines are ignored.
+    Returns a reading dict on success, None otherwise.
     """
     import re
 
-    stripped = line.strip()
-    # Strip non-ASCII (emoji, box-drawing chars)
-    cleaned = stripped.encode("ascii", errors="ignore").decode("ascii").strip()
+    # Strip non-ASCII (emoji, box-drawing chars) then whitespace
+    cleaned = line.strip().encode("ascii", errors="ignore").decode("ascii").strip()
 
-    patterns = {
-        "soil_raw":    re.compile(r"Soil\s+Value\s*:\s*(-?[\d.]+)", re.IGNORECASE),
-        "temperature": re.compile(r"Temperature\s*:\s*(-?[\d.]+)", re.IGNORECASE),
-        "humidity":    re.compile(r"Humidity\s*:\s*(-?[\d.]+)", re.IGNORECASE),
-        "dist_cm":     re.compile(r"Tank\s+Dist\s*:\s*(-?[\d.]+)", re.IGNORECASE),
-        "nitrogen":    re.compile(r"Nitrogen\s*N\s*:\s*(-?[\d.]+)", re.IGNORECASE),
-        "phosphorus":  re.compile(r"Phosphorus\s*P\s*:\s*(-?[\d.]+)", re.IGNORECASE),
-        "potassium":   re.compile(r"Potassium\s*K\s*:\s*(-?[\d.]+)", re.IGNORECASE),
+    # Match exactly 7 comma-separated numeric fields
+    m = re.fullmatch(
+        r"(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)",
+        cleaned,
+    )
+    if not m:
+        return None
+
+    try:
+        soil_raw    = float(m.group(1))
+        temperature = float(m.group(2))
+        humidity    = float(m.group(3))
+        dist_cm     = float(m.group(4))
+        nitrogen    = float(m.group(5))
+        phosphorus  = float(m.group(6))
+        potassium   = float(m.group(7))
+    except ValueError:
+        return None
+
+    # DHT failure: NaN values arrive as nan after float()
+    import math
+    if math.isnan(temperature) or math.isnan(humidity):
+        log.warning("parse_line: DHT11 returned NaN — skipping reading")
+        return None
+
+    # Ultrasonic failure sentinel (-1)
+    if dist_cm == -1:
+        dist_cm = 0.0
+
+    return {
+        "node_id":    cfg_node_id,
+        "temperature": temperature,
+        "humidity":    humidity,
+        "soil_raw":    int(soil_raw),
+        "dist_cm":     dist_cm,
+        "nitrogen":    nitrogen,
+        "phosphorus":  phosphorus,
+        "potassium":   potassium,
     }
-
-    for key, pattern in patterns.items():
-        m = pattern.search(cleaned)
-        if m:
-            try:
-                _reading_buffer[key] = float(m.group(1))
-            except ValueError:
-                pass
-            break
-
-    # Return complete reading once all 7 values collected
-    required = {"soil_raw", "temperature", "humidity", "dist_cm",
-                "nitrogen", "phosphorus", "potassium"}
-    if required.issubset(_reading_buffer.keys()):
-        reading = dict(_reading_buffer)
-        _reading_buffer.clear()
-
-        # DHT failure check
-        if reading["temperature"] == -999 or reading["humidity"] == -999:
-            log.warning("parse_line: DHT11 failure sentinel detected")
-            return None
-
-        # Ultrasonic failure
-        if reading["dist_cm"] == -1:
-            reading["dist_cm"] = 0.0
-
-        return {
-            "node_id":     cfg_node_id,
-            "temperature": reading["temperature"],
-            "humidity":    reading["humidity"],
-            "soil_raw":    int(reading["soil_raw"]),
-            "dist_cm":     reading["dist_cm"],
-            "nitrogen":    reading["nitrogen"],
-            "phosphorus":  reading["phosphorus"],
-            "potassium":   reading["potassium"],
-        }
-
-    return None
 
 
 # Module-level buffer to accumulate multi-line readings
@@ -587,4 +572,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-// bridge parser

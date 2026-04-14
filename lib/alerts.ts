@@ -115,4 +115,3 @@ export async function getAlertHistory(filters: {
     ...(filters.offset !== undefined && { skip: filters.offset }),
   })
 }
-// NPK alerts

@@ -57,4 +57,3 @@ export async function aggregateReadings(
     potassium: row.potassium !== null ? Number(row.potassium) : null,
   }))
 }
-// NPK aggregation

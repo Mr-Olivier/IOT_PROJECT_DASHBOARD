@@ -8,12 +8,12 @@
 # Linux/macOS: /dev/ttyUSB0, /dev/ttyACM0
 # Windows:     COM3, COM4, etc.
 # Example: /dev/ttyUSB0
-serial_port: COM6
+serial_port: COM8
 
 # Baud rate for serial communication. Must match the Arduino sketch.
 # Valid values: 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200
 # Example: 9600
-baud_rate: 9600
+baud_rate: 115200
 
 # Full URL of the ingest endpoint on the Next.js API server.
 # Example: http://localhost:3000/api/ingest
@@ -83,4 +83,3 @@ calibration:
   potassium:
     offset: 0    # Additive correction applied before scaling. Example: 0
     scale: 1.0   # Multiplicative correction. Example: 1.0
-// COM6 config

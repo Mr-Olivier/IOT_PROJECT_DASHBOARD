@@ -89,4 +89,3 @@ export function validateSensorPayload(payload: unknown): ValidationResult {
 
   return { valid: true }
 }
-// NPK validation

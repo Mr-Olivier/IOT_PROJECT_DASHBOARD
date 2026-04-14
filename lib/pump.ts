@@ -40,4 +40,3 @@ export async function recordPumpEvent(payload: {
 }): Promise<PumpEvent> {
   return prisma.pumpEvent.create({ data: payload })
 }
-// pump logic

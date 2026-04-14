@@ -35,4 +35,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-// gitignore update
+# python
+.hypothesis/
+__pycache__/
+*.pyc
+.pytest_cache/

@@ -20,4 +20,3 @@ const config: Config = {
 };
 
 export default createJestConfig(config);
-// jest update

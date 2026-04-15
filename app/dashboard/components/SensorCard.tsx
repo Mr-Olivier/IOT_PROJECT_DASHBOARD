@@ -6,7 +6,6 @@ import {
   Thermometer,
   Wind,
   Waves,
-  FlaskConical,
   Wifi,
   WifiOff,
   Leaf,
@@ -23,7 +22,6 @@ export interface SensorCardProps {
   temperature?: number
   humidity?: number
   reservoirLevel?: number
-  ph?: number
   nitrogen?: number | null
   phosphorus?: number | null
   potassium?: number | null
@@ -34,7 +32,6 @@ interface LiveReadings {
   temperature?: number
   humidity?: number
   reservoirLevel?: number
-  ph?: number
   nitrogen?: number | null
   phosphorus?: number | null
   potassium?: number | null
@@ -89,22 +86,12 @@ const METRICS = [
   {
     key: 'reservoirLevel' as const,
     label: 'Reservoir',
-    unit: 'cm',
+    unit: '%',
     icon: Waves,
     color: 'text-blue-600',
     bg: 'bg-blue-50',
     gradient: 'from-blue-500 to-indigo-500',
     valueColor: 'text-blue-700',
-  },
-  {
-    key: 'ph' as const,
-    label: 'pH Level',
-    unit: '',
-    icon: FlaskConical,
-    color: 'text-violet-600',
-    bg: 'bg-violet-50',
-    gradient: 'from-violet-500 to-purple-500',
-    valueColor: 'text-violet-700',
   },
   {
     key: 'nitrogen' as const,
@@ -144,7 +131,6 @@ export default function SensorCard(props: SensorCardProps) {
     temperature: props.temperature,
     humidity: props.humidity,
     reservoirLevel: props.reservoirLevel,
-    ph: props.ph,
     nitrogen: props.nitrogen,
     phosphorus: props.phosphorus,
     potassium: props.potassium,
@@ -173,7 +159,6 @@ export default function SensorCard(props: SensorCardProps) {
             temperature: d.temperature ?? prev.temperature,
             humidity: d.humidity ?? prev.humidity,
             reservoirLevel: d.reservoirLevel ?? prev.reservoirLevel,
-            ph: d.ph ?? prev.ph,
             nitrogen: d.nitrogen !== undefined ? d.nitrogen : prev.nitrogen,
             phosphorus: d.phosphorus !== undefined ? d.phosphorus : prev.phosphorus,
             potassium: d.potassium !== undefined ? d.potassium : prev.potassium,
@@ -200,7 +185,6 @@ export default function SensorCard(props: SensorCardProps) {
             temperature: data.temperature,
             humidity: data.humidity,
             reservoirLevel: data.reservoirLevel,
-            ph: data.ph,
             nitrogen: data.nitrogen ?? null,
             phosphorus: data.phosphorus ?? null,
             potassium: data.potassium ?? null,
@@ -221,10 +205,8 @@ export default function SensorCard(props: SensorCardProps) {
     }
   }, [props.nodeId])
 
-  // Primary 4 metrics (top row inside card)
-  const primary = METRICS.slice(0, 4)
-  // Secondary (ph + NPK)
-  const secondary = METRICS.slice(4)
+  // NPK only (the 4 primary sensors already appear in the overview row above)
+  const npk = METRICS.slice(4)
 
   return (
     <div
@@ -278,46 +260,35 @@ export default function SensorCard(props: SensorCardProps) {
         Last reading: {formatRelativeTime(live.lastSeen)}
       </p>
 
-      {/* Primary metrics — 2 x 2 grid */}
-      <div className="grid grid-cols-2 gap-px bg-gray-100 border-t border-gray-100">
-        {primary.map(({ key, label, unit, icon: Icon, bg, color, gradient, valueColor }) => {
-          const value = live[key]
-          return (
-            <div key={key} className="bg-white px-4 py-3 flex items-center gap-3">
-              <div className={`${bg} p-2 rounded-xl shrink-0`}>
-                <Icon size={15} className={color} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] text-gray-400 font-medium truncate">{label}</p>
-                <p className={`text-sm font-bold tabular-nums ${valueColor}`}>
-                  {value != null
-                    ? `${typeof value === 'number' ? value.toFixed(1) : value}${unit ? ` ${unit}` : ''}`
-                    : '—'}
-                </p>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+      {/* Node ID */}
+      <p className="text-[10px] text-gray-300 px-5 pb-3 font-mono truncate">
+        ID: {props.nodeId}
+      </p>
 
-      {/* Secondary metrics — ph + NPK */}
-      <div className="grid grid-cols-4 gap-px bg-gray-100 border-t border-gray-100">
-        {secondary.map(({ key, label, unit, icon: Icon, bg, color, valueColor }) => {
-          const value = live[key]
-          return (
-            <div key={key} className="bg-gray-50/80 px-2 py-2.5 flex flex-col items-center gap-1.5">
-              <div className={`${bg} p-1.5 rounded-lg`}>
-                <Icon size={12} className={color} />
+      {/* NPK soil nutrient readings */}
+      <div className="border-t border-gray-100">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-4 pt-2.5 pb-1">
+          Soil Nutrients (NPK)
+        </p>
+        <div className="grid grid-cols-3 gap-px bg-gray-100">
+          {npk.map(({ key, label, unit, icon: Icon, bg, color, valueColor }) => {
+            const value = live[key]
+            return (
+              <div key={key} className="bg-white px-3 py-2.5 flex flex-col items-center gap-1">
+                <div className={`${bg} p-1.5 rounded-lg`}>
+                  <Icon size={12} className={color} />
+                </div>
+                <p className="text-[10px] text-gray-400 font-medium text-center">
+                  {label.split(' ')[0]}
+                </p>
+                <p className={`text-xs font-bold tabular-nums ${valueColor}`}>
+                  {value != null ? `${typeof value === 'number' ? value.toFixed(0) : value}` : '—'}
+                </p>
+                <p className="text-[9px] text-gray-300">{unit}</p>
               </div>
-              <p className="text-[10px] text-gray-400 font-medium text-center leading-tight">
-                {label.split(' ')[0]}
-              </p>
-              <p className={`text-xs font-bold tabular-nums ${valueColor}`}>
-                {value != null ? `${typeof value === 'number' ? value.toFixed(1) : value}` : '—'}
-              </p>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </div>
   )

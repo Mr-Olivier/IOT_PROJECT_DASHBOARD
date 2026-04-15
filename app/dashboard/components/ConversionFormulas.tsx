@@ -6,7 +6,7 @@
  * Shown prominently on the dashboard so it is always visible.
  */
 
-import { FlaskConical, Cpu, Thermometer, Waves, Droplets, Leaf, type LucideIcon } from 'lucide-react'
+import { Cpu, Thermometer, Waves, Droplets, Leaf, type LucideIcon } from 'lucide-react'
 
 interface Formula {
   sensor: string
@@ -82,18 +82,6 @@ const FORMULAS: Formula[] = [
     iconColor: 'text-lime-600',
     badge: 'bg-lime-50 text-lime-700 border-lime-200',
   },
-  {
-    sensor: 'pH Level',
-    raw: 'Analog voltage (0 – 3.3 V)',
-    formula: 'pH = 7 + (2.5 − V_sensor) ÷ 0.18',
-    example: 'V = 2.3 V  →  7 + (2.5 − 2.3) / 0.18  =  8.1 pH',
-    reference: 'pH 4.0 and pH 7.0 buffer solutions for two-point calibration',
-    icon: FlaskConical,
-    gradient: 'from-violet-500 to-purple-500',
-    iconBg: 'bg-violet-50',
-    iconColor: 'text-violet-600',
-    badge: 'bg-violet-50 text-violet-700 border-violet-200',
-  },
 ]
 
 export default function ConversionFormulas() {
@@ -105,15 +93,15 @@ export default function ConversionFormulas() {
       <div className="px-6 pt-5 pb-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="bg-gradient-to-br from-violet-500 to-purple-600 p-2.5 rounded-xl shadow-sm">
-            <FlaskConical size={17} className="text-white" />
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 rounded-xl shadow-sm">
+            <Leaf size={17} className="text-white" />
           </div>
           <div>
             <h2 className="text-gray-900 font-bold text-base leading-tight">
-              Sensor Data Conversion Formulas
+              How Raw Sensor Signals Become Real Numbers
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              Assignment §1.2 — Raw ADC / voltage / bytes → real-world engineering units
+              Each sensor sends a raw electrical signal — these formulas convert it into a number you can understand (like 26 °C or 65 % moisture)
             </p>
           </div>
         </div>
@@ -141,7 +129,7 @@ export default function ConversionFormulas() {
 
                 {/* Raw input */}
                 <p className="text-xs text-gray-400 mb-1.5">
-                  <span className="font-semibold text-gray-500">Raw input: </span>
+                  <span className="font-semibold text-gray-500">Sensor sends: </span>
                   <span className="font-mono">{f.raw}</span>
                 </p>
 
@@ -171,14 +159,14 @@ export default function ConversionFormulas() {
         {/* Normalisation formula note */}
         <div className="mt-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl px-5 py-4">
           <p className="text-xs font-semibold text-emerald-700 mb-1">
-            Normalisation formula (used in the graph for multi-sensor overlay):
+            Normalisation formula — used to draw all sensors on one graph:
           </p>
           <p className="text-sm font-mono font-bold text-gray-800">
             normalized (%) = (value − min) ÷ (max − min) × 100
           </p>
           <p className="text-xs text-emerald-600 mt-1">
-            Maps each sensor to a common 0–100 % scale so all readings can be compared on one graph.
-            Used in Classification Panel: 0–20 % = CRITICAL LOW · 20–40 % = LOW · 40–60 % = OPTIMAL · 60–80 % = HIGH · 80–100 % = CRITICAL HIGH
+            Because sensors use different units (°C, %, mg/kg), we scale them all to 0–100 % so they fit on the same graph.
+            This does not change the data — it just makes comparison easier.
           </p>
         </div>
       </div>

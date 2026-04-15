@@ -19,7 +19,9 @@ import {
   Thermometer,
   Wind,
   Waves,
-  FlaskConical,
+  Leaf,
+  Atom,
+  Zap,
   RefreshCw,
   type LucideIcon,
 } from 'lucide-react'
@@ -35,11 +37,13 @@ interface SensorLine {
 }
 
 const SENSOR_LINES: SensorLine[] = [
-  { key: 'soilMoisture',   label: 'Soil Moisture',  unit: '%',  color: '#10b981', Icon: Droplets,    yAxisId: 'pct'   },
-  { key: 'temperature',    label: 'Temperature',    unit: '°C', color: '#f97316', Icon: Thermometer, yAxisId: 'temp'  },
-  { key: 'humidity',       label: 'Humidity',       unit: '%',  color: '#38bdf8', Icon: Wind,        yAxisId: 'pct'   },
-  { key: 'reservoirLevel', label: 'Reservoir',      unit: 'cm', color: '#818cf8', Icon: Waves,       yAxisId: 'level' },
-  { key: 'ph',             label: 'pH',             unit: '',   color: '#c084fc', Icon: FlaskConical, yAxisId: 'ph'   },
+  { key: 'soilMoisture',   label: 'Soil Moisture',  unit: '%',     color: '#10b981', Icon: Droplets,    yAxisId: 'pct'  },
+  { key: 'temperature',    label: 'Temperature',    unit: '°C',    color: '#f97316', Icon: Thermometer, yAxisId: 'temp' },
+  { key: 'humidity',       label: 'Humidity',       unit: '%',     color: '#38bdf8', Icon: Wind,        yAxisId: 'pct'  },
+  { key: 'reservoirLevel', label: 'Reservoir',      unit: '%',     color: '#818cf8', Icon: Waves,       yAxisId: 'level'},
+  { key: 'nitrogen',       label: 'Nitrogen',       unit: 'mg/kg', color: '#84cc16', Icon: Leaf,        yAxisId: 'npk'  },
+  { key: 'phosphorus',     label: 'Phosphorus',     unit: 'mg/kg', color: '#f59e0b', Icon: Atom,        yAxisId: 'npk'  },
+  { key: 'potassium',      label: 'Potassium',      unit: 'mg/kg', color: '#f43f5e', Icon: Zap,         yAxisId: 'npk'  },
 ]
 
 // ─── Time-range options ───────────────────────────────────────────────────────
@@ -58,7 +62,9 @@ interface Reading {
   temperature?: number | null
   humidity?: number | null
   reservoirLevel?: number | null
-  ph?: number | null
+  nitrogen?: number | null
+  phosphorus?: number | null
+  potassium?: number | null
 }
 
 interface DashboardChartProps {
@@ -193,7 +199,9 @@ export default function DashboardChart({
       temperature:    r.temperature    ?? null,
       humidity:       r.humidity       ?? null,
       reservoirLevel: r.reservoirLevel ?? null,
-      ph:             r.ph             ?? null,
+      nitrogen:       r.nitrogen       ?? null,
+      phosphorus:     r.phosphorus     ?? null,
+      potassium:      r.potassium      ?? null,
     })),
     [readings]
   )
@@ -291,7 +299,10 @@ export default function DashboardChart({
             Y-Right: °C — Temperature
           </span>
           <span className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg font-mono">
-            cm — Reservoir
+            % — Reservoir
+          </span>
+          <span className="flex items-center gap-1.5 bg-lime-50 text-lime-700 px-2 py-1 rounded-lg font-mono">
+            mg/kg — N · P · K
           </span>
           <span className="ml-auto flex items-center gap-1.5 text-gray-400">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
@@ -345,9 +356,9 @@ export default function DashboardChart({
                 label={{ value: '°C', angle: 90, position: 'insideRight', offset: -4, fontSize: 11, fill: '#f97316' }}
               />
 
-              {/* Hidden axes for reservoir + pH (same chart, no extra ticks) */}
-              <YAxis yAxisId="level" orientation="right" hide width={0} />
-              <YAxis yAxisId="ph"    orientation="right" hide width={0} domain={[0, 14]} />
+              {/* Hidden axes for reservoir and NPK */}
+              <YAxis yAxisId="level" orientation="right" hide width={0} domain={[0, 100]} />
+              <YAxis yAxisId="npk"   orientation="right" hide width={0} domain={[0, 1999]} />
 
               {/* Threshold reference lines */}
               <ReferenceLine yAxisId="pct"  y={40}  stroke="#10b981" strokeDasharray="3 3" strokeOpacity={0.5}

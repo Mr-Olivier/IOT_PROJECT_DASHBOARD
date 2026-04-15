@@ -28,8 +28,9 @@ import yaml
 # Logging
 # ---------------------------------------------------------------------------
 
+_log_level = logging.DEBUG if os.environ.get("DEBUG") else logging.INFO
 logging.basicConfig(
-    level=logging.INFO,
+    level=_log_level,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
@@ -43,7 +44,7 @@ VALID_RANGES = {
     "soilMoisture":   (0.0,   100.0),
     "temperature":    (-40.0,  80.0),
     "humidity":       (0.0,   100.0),
-    "reservoirLevel": (0.0,   400.0),
+    "reservoirLevel": (0.0,   100.0),
     "nitrogen":       (0.0,  1999.0),
     "phosphorus":     (0.0,  1999.0),
     "potassium":      (0.0,  1999.0),
@@ -274,57 +275,107 @@ def validate_startup(cfg: AppConfig) -> None:
 
 def parse_line(line: str) -> Optional[dict]:
     """
-    Parse the CSV data line emitted by sendSerialData() in the Arduino sketch.
-    Format: soilValue,temperature,humidity,distance,N,P,K
-    Example: 430,24.50,62.00,18.30,26,0,0
+    Handles two Arduino output formats:
 
-    All other human-readable / status lines are ignored.
-    Returns a reading dict on success, None otherwise.
+    1. DATA: key=value line (preferred):
+       DATA:N=17,P=24,K=48,M=509,T=26.40,H=80.00,W=0.00,PUMP=0
+
+    2. Multi-line human-readable block (fallback for older sketches):
+       Accumulates labeled lines between the '---' separator markers
+       and emits a reading when the closing separator is reached.
     """
     import re
 
-    # Strip non-ASCII (emoji, box-drawing chars) then whitespace
     cleaned = line.strip().encode("ascii", errors="ignore").decode("ascii").strip()
 
-    # Match exactly 7 comma-separated numeric fields
-    m = re.fullmatch(
-        r"(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)",
-        cleaned,
-    )
-    if not m:
+    # --- Format 1: DATA: line ---
+    if cleaned.startswith("DATA:"):
+        data_part = cleaned[5:]
+        pairs: dict = {}
+        for item in data_part.split(","):
+            if "=" in item:
+                key, _, val = item.partition("=")
+                pairs[key.strip()] = val.strip()
+        try:
+            temperature = float(pairs["T"])
+            humidity    = float(pairs["H"])
+            soil_raw    = int(float(pairs["M"]))
+            water_pct   = float(pairs["W"])
+            nitrogen    = float(pairs["N"])
+            phosphorus  = float(pairs["P"])
+            potassium   = float(pairs["K"])
+        except (KeyError, ValueError):
+            return None
+        if math.isnan(temperature) or math.isnan(humidity):
+            log.warning("parse_line: DHT11 returned NaN — skipping reading")
+            return None
+        return {
+            "node_id":     cfg_node_id,
+            "temperature": temperature,
+            "humidity":    humidity,
+            "soil_raw":    soil_raw,
+            "water_pct":   water_pct,
+            "nitrogen":    nitrogen,
+            "phosphorus":  phosphorus,
+            "potassium":   potassium,
+        }
+
+    # --- Format 2: accumulate multi-line block ---
+
+    # Start of block — reset buffer
+    if "SENSOR DATA" in cleaned:
+        _reading_buffer.clear()
         return None
 
-    try:
-        soil_raw    = float(m.group(1))
-        temperature = float(m.group(2))
-        humidity    = float(m.group(3))
-        dist_cm     = float(m.group(4))
-        nitrogen    = float(m.group(5))
-        phosphorus  = float(m.group(6))
-        potassium   = float(m.group(7))
-    except ValueError:
-        return None
+    # Individual labeled lines — extract numeric value
+    patterns = [
+        (r"Soil Moisture(?:\s+Value)?:\s*([\d.]+)",  "soil_raw",    int),
+        (r"Tank\s+(?:Fullness|%):\s*([\d.]+)",        "water_pct",   float),
+        (r"Tank Distance:\s*([\d.]+)",                "dist_cm",     float),
+        (r"Temperature:\s*([\d.]+)",                  "temperature", float),
+        (r"Humidity:\s*([\d.]+)",                     "humidity",    float),
+        (r"Nitrogen:\s*([\d.]+)",                     "nitrogen",    float),
+        (r"Phosphorus:\s*([\d.]+)",                   "phosphorus",  float),
+        (r"Potassium:\s*([\d.]+)",                    "potassium",   float),
+    ]
+    for pattern, key, cast in patterns:
+        m = re.match(pattern, cleaned, re.IGNORECASE)
+        if m:
+            try:
+                _reading_buffer[key] = cast(m.group(1))
+            except ValueError:
+                pass
+            return None
 
-    # DHT failure: NaN values arrive as nan after float()
-    import math
-    if math.isnan(temperature) or math.isnan(humidity):
-        log.warning("parse_line: DHT11 returned NaN — skipping reading")
-        return None
+    # End of block — emit reading if we have the minimum required fields
+    if cleaned.startswith("---") and _reading_buffer:
+        buf = dict(_reading_buffer)
+        _reading_buffer.clear()
 
-    # Ultrasonic failure sentinel (-1)
-    if dist_cm == -1:
-        dist_cm = 0.0
+        if not all(k in buf for k in ("soil_raw", "temperature", "humidity")):
+            return None
 
-    return {
-        "node_id":    cfg_node_id,
-        "temperature": temperature,
-        "humidity":    humidity,
-        "soil_raw":    int(soil_raw),
-        "dist_cm":     dist_cm,
-        "nitrogen":    nitrogen,
-        "phosphorus":  phosphorus,
-        "potassium":   potassium,
-    }
+        # Derive water_pct from dist_cm if the Fullness line wasn't present
+        water_pct = buf.get("water_pct", 0.0)
+
+        temperature = buf["temperature"]
+        humidity    = buf["humidity"]
+        if math.isnan(temperature) or math.isnan(humidity):
+            log.warning("parse_line: DHT11 returned NaN — skipping reading")
+            return None
+
+        return {
+            "node_id":     cfg_node_id,
+            "temperature": temperature,
+            "humidity":    humidity,
+            "soil_raw":    buf["soil_raw"],
+            "water_pct":   water_pct,
+            "nitrogen":    buf.get("nitrogen",   0.0),
+            "phosphorus":  buf.get("phosphorus", 0.0),
+            "potassium":   buf.get("potassium",  0.0),
+        }
+
+    return None
 
 
 # Module-level buffer to accumulate multi-line readings
@@ -360,11 +411,14 @@ def convert_units(raw: dict, cal: dict) -> dict:
     phosphorus = float(raw.get("phosphorus", 0) or 0)
     potassium  = float(raw.get("potassium", 0) or 0)
 
+    # Water percentage is already 0–100 (computed on the Arduino)
+    water_pct = float(raw.get("water_pct", 0) or 0)
+
     pre_cal = {
         "soilMoisture":   soil_pct,
         "temperature":    raw["temperature"],
         "humidity":       raw["humidity"],
-        "reservoirLevel": raw["dist_cm"],
+        "reservoirLevel": water_pct,
         "nitrogen":       nitrogen,
         "phosphorus":     phosphorus,
         "potassium":      potassium,
@@ -554,6 +608,7 @@ def main() -> None:
                     log.warning("Serial read error: %s", exc)
                     continue
 
+                log.debug("RX: %r", line.rstrip())
                 parsed = parse_line(line)
                 if parsed is None:
                     continue

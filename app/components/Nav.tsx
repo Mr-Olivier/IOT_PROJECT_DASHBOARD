@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Droplets, LayoutDashboard, Activity, Radio } from 'lucide-react'
+import { Droplets, LayoutDashboard, Activity, Radio, BookOpen } from 'lucide-react'
 
 const links = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/docs',      label: 'Documentation', icon: BookOpen },
 ]
 
 export default function Nav() {

@@ -12,7 +12,6 @@ interface NodeData {
   temperature?: number
   humidity?: number
   reservoirLevel?: number
-  ph?: number
   nitrogen?: number | null
   phosphorus?: number | null
   potassium?: number | null
@@ -53,7 +52,6 @@ export default function NodeStatusGrid({ initialNodes }: NodeStatusGridProps) {
             temperature={node.temperature}
             humidity={node.humidity}
             reservoirLevel={node.reservoirLevel}
-            ph={node.ph}
             nitrogen={node.nitrogen}
             phosphorus={node.phosphorus}
             potassium={node.potassium}

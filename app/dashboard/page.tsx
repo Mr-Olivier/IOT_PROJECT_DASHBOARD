@@ -4,15 +4,19 @@ import { getLatestPrediction } from '@/lib/predictions'
 import { getAlertHistory } from '@/lib/alerts'
 import { getActiveNodes, isNodeOffline } from '@/lib/nodes'
 import { getLatestReading, getHistoricalReadings } from '@/lib/readings'
+import { getClassificationStats } from '@/lib/classification'
 import { prisma } from '@/lib/prisma'
 import { generateMockReadings } from '@/lib/mockReadings'
 
+import Link from 'next/link'
+import AutoRefresh from './components/AutoRefresh'
 import NodeStatusGrid from './components/NodeStatusGrid'
 import PumpControlPanel from './components/PumpControlPanel'
 import AlertBanner from './components/AlertBanner'
 import SystemSensorRow from './components/SystemSensorRow'
 import DashboardChart from './components/DashboardChart'
 import ConversionFormulas from './components/ConversionFormulas'
+import DataClassificationPanel from './components/DataClassificationPanel'
 import {
   Leaf,
   Database,
@@ -20,6 +24,7 @@ import {
   AlertTriangle,
   Activity,
   Radio,
+  BookOpen,
 } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -48,6 +53,11 @@ export default async function DashboardPage() {
     prisma.sensorReading.count(),
   ])
 
+  // ── Classification stats (§10) ────────────────────────────────────────────
+  const classStats = activeNodes[0]
+    ? await getClassificationStats(activeNodes[0].id)
+    : null
+
   // ── Enrich nodes with latest readings ──────────────────────────────────
   const nodesWithStatus = await Promise.all(
     activeNodes.map(async (node) => {
@@ -63,7 +73,6 @@ export default async function DashboardPage() {
         temperature: latest?.temperature,
         humidity: latest?.humidity,
         reservoirLevel: latest?.reservoirLevel,
-        ph: latest?.ph,
         nitrogen: latest?.nitrogen ?? null,
         phosphorus: latest?.phosphorus ?? null,
         potassium: latest?.potassium ?? null,
@@ -104,7 +113,9 @@ export default async function DashboardPage() {
     temperature:    avg(onlineNodes.map((n) => n.temperature)),
     humidity:       avg(onlineNodes.map((n) => n.humidity)),
     reservoirLevel: avg(onlineNodes.map((n) => n.reservoirLevel)),
-    ph:             avg(onlineNodes.map((n) => n.ph)),
+    nitrogen:       avg(onlineNodes.map((n) => n.nitrogen ?? undefined)),
+    phosphorus:     avg(onlineNodes.map((n) => n.phosphorus ?? undefined)),
+    potassium:      avg(onlineNodes.map((n) => n.potassium ?? undefined)),
   }
 
   // ── Chart readings: real DB data, or mock fallback ───────────────────────
@@ -115,7 +126,9 @@ export default async function DashboardPage() {
     temperature?: number | null
     humidity?: number | null
     reservoirLevel?: number | null
-    ph?: number | null
+    nitrogen?: number | null
+    phosphorus?: number | null
+    potassium?: number | null
   }[] = []
   let usingMockData = false
 
@@ -128,7 +141,9 @@ export default async function DashboardPage() {
       temperature:    r.temperature,
       humidity:       r.humidity,
       reservoirLevel: r.reservoirLevel,
-      ph:             r.ph,
+      nitrogen:       r.nitrogen  ?? null,
+      phosphorus:     r.phosphorus ?? null,
+      potassium:      r.potassium  ?? null,
     }))
   }
 
@@ -144,6 +159,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="bg-[#f8fafc] min-h-screen">
+      <AutoRefresh intervalMs={5000} />
 
       {/* ════════════════════════════════════════════════════════════════════
           HERO HEADER
@@ -165,6 +181,15 @@ export default async function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Documentation link */}
+            <Link
+              href="/docs"
+              className="hidden sm:flex items-center gap-1.5 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-600 hover:text-indigo-700 rounded-full px-3 py-1.5 transition-all"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span className="text-xs font-semibold">Documentation</span>
+            </Link>
+
             {/* Live pulse */}
             <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-full px-3 py-1.5">
               <span className="relative flex h-2 w-2">
@@ -254,8 +279,8 @@ export default async function DashboardPage() {
             title="Live Sensor Overview"
             subtitle={
               onlineCount > 0
-                ? `Real-time averages across ${onlineCount} online node${onlineCount !== 1 ? 's' : ''}`
-                : 'Demo values — will update automatically when sensors connect'
+                ? `Average readings right now from ${onlineCount} connected sensor node${onlineCount !== 1 ? 's' : ''}`
+                : 'Demo values shown — will update automatically once sensors are connected'
             }
             badge={onlineCount === 0 ? 'Demo' : undefined}
           />
@@ -267,13 +292,13 @@ export default async function DashboardPage() {
         ══════════════════════════════════════════════════════════════════ */}
         <section>
           <SectionHeader
-            title="Multi-Sensor Time-Series Graph"
+            title="Sensor Readings Over Time"
             subtitle={
               usingMockData
-                ? 'Simulated data — auto-switches to DB data once sensors are connected'
-                : `Live DB data · node: ${featuredNode?.name} · all sensors synchronized`
+                ? 'Showing example data — graph will switch to real sensor data once devices are connected'
+                : `Real database data · node: ${featuredNode?.name} · all 7 sensors on one graph`
             }
-            badge={usingMockData ? 'Mock Data' : 'Live DB'}
+            badge={usingMockData ? 'Demo Data' : 'Live DB'}
             badgeColor={usingMockData ? 'amber' : 'emerald'}
           />
           <DashboardChart
@@ -289,19 +314,36 @@ export default async function DashboardPage() {
         ══════════════════════════════════════════════════════════════════ */}
         <section>
           <SectionHeader
-            title="Sensor Data Conversion Formulas"
-            subtitle="Assignment §1.2 — how raw ADC / pulse / bytes are converted to real-world units"
+            title="How Raw Sensor Signals Become Real Numbers"
+            subtitle="Each sensor sends a raw electrical signal — these formulas convert it into a meaningful unit like °C or %"
           />
           <ConversionFormulas />
         </section>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            SECTION 4 — DATA CLASSIFICATION & ANALYSIS (§10)
+        ══════════════════════════════════════════════════════════════════ */}
+        {classStats && (
+          <section>
+            <SectionHeader
+              title="Data Classification & Analysis"
+              subtitle="Every sensor reading is given a label (OPTIMAL, LOW, CRITICAL HIGH …) — this section shows how and why"
+            />
+            <DataClassificationPanel
+              totalReadings={classStats.totalReadings}
+              sensors={classStats.sensors}
+              correlations={classStats.correlations}
+            />
+          </section>
+        )}
 
         {/* ══════════════════════════════════════════════════════════════════
             SECTION 4 — NODE CARDS + PUMP CONTROL
         ══════════════════════════════════════════════════════════════════ */}
         <section>
           <SectionHeader
-            title="Sensor Node Status"
-            subtitle="Click any node to open its full time-series analysis and classification panel"
+            title="Individual Sensor Nodes"
+            subtitle="Each physical device in the field — shows its unique ID, connection status, and soil nutrient (NPK) readings. Click a node to see its full history."
           />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Node cards — left 2/3 */}

@@ -8,12 +8,14 @@
 # Linux/macOS: /dev/ttyUSB0, /dev/ttyACM0
 # Windows:     COM3, COM4, etc.
 # Example: /dev/ttyUSB0
+# *** CHANGE THIS to match your Arduino's COM port ***
+# Plug in USB, open Device Manager → Ports → look for "Arduino Uno (COMx)"
 serial_port: COM8
 
 # Baud rate for serial communication. Must match the Arduino sketch.
 # Valid values: 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200
 # Example: 9600
-baud_rate: 115200
+baud_rate: 9600
 
 # Full URL of the ingest endpoint on the Next.js API server.
 # Example: http://localhost:3000/api/ingest

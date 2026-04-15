@@ -81,9 +81,9 @@ const SENSOR_CONFIG: Record<string, SensorConfig> = {
   },
   reservoirLevel: {
     displayName: "Reservoir Level",
-    unit: "cm",
-    conversionNote: "HC-SR04 pulse duration → cm via: duration × 0.034 / 2",
-    referenceValue: "Physical ruler measurement of distance from sensor to water surface",
+    unit: "%",
+    conversionNote: "HC-SR04 pulse duration → cm via: duration × 0.034 / 2, then mapped to fill % using tank empty/full calibration points",
+    referenceValue: "Physical ruler measurement of tank depth; empty = 12 cm, full = 3 cm from sensor",
     correlation:
       "Decreases as irrigation pump activates (water leaving tank). " +
       "Rate of decrease correlates with soil moisture deficit magnitude. " +
@@ -252,10 +252,10 @@ export default function ClassificationPanel({ readings }: ClassificationPanelPro
       {/* Correlation matrix */}
       <div className="border border-gray-100 rounded-xl p-4 bg-gray-50">
         <h4 className="text-sm font-semibold text-gray-700 mb-3">
-          Sensor Correlation Documentation
+          How Sensors Affect Each Other
         </h4>
         <p className="text-xs text-gray-500 mb-3">
-          Assignment §9.2 — "Understanding your sensor data correlation before you can classify to predict"
+          Understanding the relationship between sensors helps us make better irrigation decisions — for example, when temperature is high the soil dries out faster.
         </p>
         <div className="space-y-3">
           {Object.entries(SENSOR_CONFIG).map(([key, cfg]) => (

@@ -40,7 +40,6 @@ export default async function NodePage({ params }: NodePageProps) {
     temperature: r.temperature,
     humidity: r.humidity,
     reservoirLevel: r.reservoirLevel,
-    ph: r.ph,
     nitrogen: r.nitrogen ?? null,
     phosphorus: r.phosphorus ?? null,
     potassium: r.potassium ?? null,
@@ -131,7 +130,7 @@ export default async function NodePage({ params }: NodePageProps) {
         {/* ── Section label ── */}
         <div>
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-4">
-            Live Sensor Readings
+            Current Sensor Values
           </h2>
           {/* Metric cards in a row */}
           <SensorMetricsRow nodeId={node.id} readings={serializedReadings} />
@@ -140,7 +139,7 @@ export default async function NodePage({ params }: NodePageProps) {
         {/* ── Charts section ── */}
         <div>
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-4">
-            Time-Series Analysis
+            Sensor Readings Over Time
           </h2>
           <NodeDetailCharts nodeId={node.id} initialReadings={serializedReadings} />
         </div>

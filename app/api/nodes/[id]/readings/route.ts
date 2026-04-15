@@ -38,10 +38,25 @@ export async function GET(
 
   try {
     if (shouldAggregate) {
-      const readings = await aggregateReadings(nodeId, start, end)
+      const raw = await aggregateReadings(nodeId, start, end)
+      // Normalize `bucket` → `timestamp` so the chart always gets a consistent field
+      const readings = raw.map(({ bucket, ...rest }) => ({
+        timestamp: bucket.toISOString(),
+        ...rest,
+      }))
       return NextResponse.json({ readings, aggregated: true })
     } else {
-      const readings = await getHistoricalReadings(nodeId, start, end)
+      const raw = await getHistoricalReadings(nodeId, start, end)
+      const readings = raw.map((r) => ({
+        timestamp:      r.timestamp.toISOString(),
+        soilMoisture:   r.soilMoisture,
+        temperature:    r.temperature,
+        humidity:       r.humidity,
+        reservoirLevel: r.reservoirLevel,
+        nitrogen:       r.nitrogen   ?? null,
+        phosphorus:     r.phosphorus ?? null,
+        potassium:      r.potassium  ?? null,
+      }))
       return NextResponse.json({ readings, aggregated: false })
     }
   } catch {

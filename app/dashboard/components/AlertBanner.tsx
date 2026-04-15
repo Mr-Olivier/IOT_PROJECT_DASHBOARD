@@ -24,7 +24,9 @@ function formatMetric(metric: string): string {
     temperature: 'Temperature',
     humidity: 'Humidity',
     reservoirLevel: 'Reservoir Level',
-    ph: 'pH',
+    nitrogen: 'Nitrogen',
+    phosphorus: 'Phosphorus',
+    potassium: 'Potassium',
   }
   return labels[metric] ?? metric
 }

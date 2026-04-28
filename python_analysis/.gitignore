@@ -1,0 +1,8 @@
+# Large regeneratable files — run 02_augmentation.py to recreate
+data/augmented.csv
+data/cleaned_encoded.csv
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo

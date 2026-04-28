@@ -320,6 +320,66 @@ def parse_line(line: str) -> Optional[dict]:
             "potassium":   potassium,
         }
 
+    # --- Format 0: plain CSV — soilRaw,temp,humidity,distCm,N,P,K ---
+    tokens = cleaned.split(",")
+    if len(tokens) == 7:
+        try:
+            soil_raw   = int(float(tokens[0]))
+            temperature= float(tokens[1])
+            humidity   = float(tokens[2])
+            dist_cm    = float(tokens[3])
+            nitrogen   = float(tokens[4])
+            phosphorus = float(tokens[5])
+            potassium  = float(tokens[6])
+            # Validate they look like numbers (not header lines)
+            if not (-100 < temperature < 200):
+                raise ValueError
+        except ValueError:
+            pass  # fall through to multi-line parser
+        else:
+            if temperature == -999 or humidity == -999:
+                log.warning("parse_line: DHT11 sentinel in CSV")
+                return None
+            return {
+                "node_id":     cfg_node_id,
+                "temperature": temperature,
+                "humidity":    humidity,
+                "soil_raw":    soil_raw,
+                "water_pct":   max(0.0, (1 - dist_cm / 400.0) * 100) if dist_cm >= 0 else 0.0,
+                "nitrogen":    nitrogen if nitrogen >= 0 else None,
+                "phosphorus":  phosphorus if phosphorus >= 0 else None,
+                "potassium":   potassium if potassium >= 0 else None,
+            }
+        data_part = cleaned[5:]
+        pairs: dict = {}
+        for item in data_part.split(","):
+            if "=" in item:
+                key, _, val = item.partition("=")
+                pairs[key.strip()] = val.strip()
+        try:
+            temperature = float(pairs["T"])
+            humidity    = float(pairs["H"])
+            soil_raw    = int(float(pairs["M"]))
+            water_pct   = float(pairs["W"])
+            nitrogen    = float(pairs["N"])
+            phosphorus  = float(pairs["P"])
+            potassium   = float(pairs["K"])
+        except (KeyError, ValueError):
+            return None
+        if math.isnan(temperature) or math.isnan(humidity):
+            log.warning("parse_line: DHT11 returned NaN — skipping reading")
+            return None
+        return {
+            "node_id":     cfg_node_id,
+            "temperature": temperature,
+            "humidity":    humidity,
+            "soil_raw":    soil_raw,
+            "water_pct":   water_pct,
+            "nitrogen":    nitrogen,
+            "phosphorus":  phosphorus,
+            "potassium":   potassium,
+        }
+
     # --- Format 2: accumulate multi-line block ---
 
     # Start of block — reset buffer

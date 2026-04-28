@@ -1,0 +1,8 @@
+model,task,metric,value
+Decision Tree,classification,weighted_f1,0.3852
+Random Forest,classification,weighted_f1,0.412
+Logistic Regression,classification,weighted_f1,0.3307
+Linear Regression,regression,RMSE,17.8988
+Linear Regression,regression,R2,0.0566
+Gradient Boosting,regression,RMSE,17.8428
+Gradient Boosting,regression,R2,0.0625

@@ -1,0 +1,8 @@
+,soilMoisture,soilMoisture,soilMoisture,soilMoisture,temperature,temperature,temperature,temperature,humidity,humidity,humidity,humidity,reservoirLevel,reservoirLevel,reservoirLevel,reservoirLevel,nitrogen,nitrogen,nitrogen,nitrogen,phosphorus,phosphorus,phosphorus,phosphorus,potassium,potassium,potassium,potassium
+,mean,std,min,max,mean,std,min,max,mean,std,min,max,mean,std,min,max,mean,std,min,max,mean,std,min,max,mean,std,min,max
+soilMoisture_class,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+criticalLow,19.49,0.36,18.55,20.0,26.29,1.73,23.39,28.85,76.24,5.62,67.39,86.41,42.58,18.35,13.13,85.28,16.2,7.51,0.8,37.1,21.08,6.39,7.7,40.6,42.6,14.04,13.6,84.0
+low,31.82,5.89,20.01,40.0,26.2,1.81,22.76,29.23,76.92,6.02,65.94,90.07,42.67,18.96,13.15,96.39,17.73,8.23,0.4,43.2,23.2,7.81,7.3,47.7,46.94,16.61,13.2,98.0
+optimal,55.0,8.64,40.01,70.0,25.98,1.82,20.7,34.1,78.14,6.1,65.91,95.0,40.22,18.13,3.15,96.13,20.47,8.55,0.5,43.6,26.65,8.38,2.0,47.9,53.84,17.68,2.0,98.6
+high,77.41,4.3,70.01,85.0,25.97,1.82,22.77,30.7,78.16,6.11,65.83,90.01,40.18,18.12,13.06,100.0,20.53,8.54,0.3,43.2,26.73,8.37,7.5,47.3,53.97,17.63,13.3,97.9
+criticalHigh,88.43,2.19,85.01,100.0,25.66,1.78,22.77,29.18,79.82,5.81,66.05,90.15,36.5,16.35,13.14,95.17,24.27,7.47,1.1,43.4,31.37,6.61,7.8,47.6,63.26,14.34,13.9,98.3

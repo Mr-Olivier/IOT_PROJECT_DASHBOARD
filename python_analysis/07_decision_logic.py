@@ -27,7 +27,15 @@ DECISION_TABLE = [
     (4, "low",          "criticalHigh", "PUMP_ON_LOW"),
     (5, "low",          "criticalLow",  "ALERT_REFILL"),
     (5, "low",          "low",          "MONITOR"),
-    (6, "optimal",      "*",            "PUMP_OFF"),
+    # optimal soil (40-70 %): real sensor data mostly falls here.
+    # Reservoir is plentiful (high/criticalHigh ~80 % of readings),
+    # so the pump should run to maintain crop hydration.
+    (6, "optimal",      "optimal",      "PUMP_ON_LOW"),
+    (6, "optimal",      "high",         "PUMP_ON_LOW"),
+    (6, "optimal",      "criticalHigh", "PUMP_ON_LOW"),
+    (6, "optimal",      "low",          "MONITOR"),
+    (6, "optimal",      "criticalLow",  "ALERT_REFILL"),
+    # high soil (70-85 %): already well-watered — stop the pump
     (7, "high",         "*",            "PUMP_OFF"),
 ]
 
@@ -70,8 +78,9 @@ actions = counts.index.tolist()
 vals    = counts.values.tolist()
 colors  = [colors_map.get(a, "grey") for a in actions]
 bars = ax.bar(actions, vals, color=colors, edgecolor="white")
+label_offset = max(vals) * 0.015  # 1.5% of tallest bar — works for any dataset size
 for bar, val in zip(bars, vals):
-    ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 200,
+    ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + label_offset,
             f"{val:,}", ha="center", va="bottom", fontsize=9)
 ax.set_ylabel("Number of Readings")
 ax.set_title("AquaSense - Irrigation Decision Distribution\n(Rule-Based Engine on Cleaned Data)",

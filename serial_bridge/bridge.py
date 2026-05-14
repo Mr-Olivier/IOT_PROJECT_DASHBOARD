@@ -289,6 +289,8 @@ def parse_line(line: str) -> Optional[dict]:
     cleaned = line.strip().encode("ascii", errors="ignore").decode("ascii").strip()
 
     # --- Format 1: DATA: line ---
+    # Supports both old format: DATA:N=x,P=x,K=x,M=x,T=x,H=x,W=x,PUMP=x
+    # and new format:           DATA:N=x,...,PUMP=x,SRC=ML,DECISION=IRRIGATE
     if cleaned.startswith("DATA:"):
         data_part = cleaned[5:]
         pairs: dict = {}
@@ -309,15 +311,25 @@ def parse_line(line: str) -> Optional[dict]:
         if math.isnan(temperature) or math.isnan(humidity):
             log.warning("parse_line: DHT11 returned NaN — skipping reading")
             return None
+
+        # Optional fields added by the updated Arduino sketch
+        pump_src      = pairs.get("SRC",      "UNKNOWN")   # ML or LOCAL
+        arduino_decision = pairs.get("DECISION", "UNKNOWN")   # IRRIGATE / HOLD / LOW_WATER
+
+        if pump_src != "UNKNOWN":
+            log.debug("Arduino pump source=%s  decision=%s", pump_src, arduino_decision)
+
         return {
-            "node_id":     cfg_node_id,
-            "temperature": temperature,
-            "humidity":    humidity,
-            "soil_raw":    soil_raw,
-            "water_pct":   water_pct,
-            "nitrogen":    nitrogen,
-            "phosphorus":  phosphorus,
-            "potassium":   potassium,
+            "node_id":           cfg_node_id,
+            "temperature":       temperature,
+            "humidity":          humidity,
+            "soil_raw":          soil_raw,
+            "water_pct":         water_pct,
+            "nitrogen":          nitrogen,
+            "phosphorus":        phosphorus,
+            "potassium":         potassium,
+            "arduino_src":       pump_src,
+            "arduino_decision":  arduino_decision,
         }
 
     # --- Format 0: plain CSV — soilRaw,temp,humidity,distCm,N,P,K ---
@@ -571,11 +583,14 @@ def simulate_reading(node_id: str, t: float) -> dict:
     # Humidity: inverse of temperature ~40-80%
     humidity = 60.0 - 20.0 * math.sin(2 * math.pi * t / 86400)
 
-    # Soil moisture: slow decay, resets hourly ~30-80%
-    soil_moisture = max(30.0, 80.0 - (t % 3600) / 3600.0 * 50.0)
+    # Soil moisture: decays from 80% → 25% over 2 minutes, then resets.
+    # This makes IRRIGATE and HOLD alternate every ~90 seconds so the
+    # lecturer can watch the pump command change live.
+    cycle = t % 120  # 2-minute cycle
+    soil_moisture = max(25.0, 80.0 - cycle / 120.0 * 60.0)
 
-    # Reservoir level: slow oscillation ~10-50 cm
-    reservoir_level = 30.0 + 20.0 * math.sin(2 * math.pi * t / 7200)
+    # Reservoir level: slow oscillation 20–80% (stays above LOW_WATER threshold)
+    reservoir_level = 50.0 + 30.0 * math.sin(2 * math.pi * t / 600)
 
     # NPK: deterministic random walk seeded by t
     rng = random.Random(int(t / 60))  # changes every minute
@@ -599,6 +614,9 @@ def simulate_reading(node_id: str, t: float) -> dict:
 # Main loop
 # ---------------------------------------------------------------------------
 
+ML_SERVICE_URL = os.environ.get("ML_SERVICE_URL", "http://localhost:5001")
+
+
 def _build_payload(reading: dict, node_id: str) -> dict:
     """Build the JSON payload for the ingest API from a converted reading."""
     return {
@@ -613,6 +631,48 @@ def _build_payload(reading: dict, node_id: str) -> dict:
         "phosphorus": reading.get("phosphorus"),
         "potassium": reading.get("potassium"),
     }
+
+
+def ask_ml_service(reading: dict, node_id: str) -> Optional[dict]:
+    """
+    POST the current reading to the ML service and return the decision dict.
+    Returns None silently if the service is unreachable (non-blocking).
+    """
+    payload = {
+        "nodeId":         node_id,
+        "soilMoisture":   reading["soilMoisture"],
+        "temperature":    reading["temperature"],
+        "humidity":       reading["humidity"],
+        "reservoirLevel": reading["reservoirLevel"],
+        "nitrogen":       reading.get("nitrogen") or 0.0,
+        "phosphorus":     reading.get("phosphorus") or 0.0,
+        "potassium":      reading.get("potassium") or 0.0,
+    }
+    try:
+        resp = requests.post(f"{ML_SERVICE_URL}/predict", json=payload, timeout=4)
+        if resp.ok:
+            return resp.json()
+        log.warning("ML service returned %d: %s", resp.status_code, resp.text[:100])
+    except requests.exceptions.RequestException as exc:
+        log.debug("ML service unreachable (%s) — skipping pump command", exc)
+    return None
+
+
+def send_pump_command(ser, pump_on: bool, decision: str = "UNKNOWN") -> None:
+    """
+    Write CMD:PUMP=X:DECISION\\n over USB serial so the Arduino can act on it.
+
+    Format: CMD:PUMP=1:IRRIGATE  or  CMD:PUMP=0:HOLD  or  CMD:PUMP=0:LOW_WATER
+    The Arduino parses the decision label and logs it on its Serial Monitor,
+    then immediately energises or opens the relay accordingly.
+    """
+    cmd = f"CMD:PUMP={'1' if pump_on else '0'}:{decision}\n"
+    try:
+        ser.write(cmd.encode("utf-8"))
+        ser.flush()
+        log.info("Serial TX → Arduino: %s", cmd.strip())
+    except Exception as exc:
+        log.warning("Failed to write pump command to serial: %s", exc)
 
 
 def main() -> None:
@@ -638,6 +698,25 @@ def main() -> None:
                 reading = simulate_reading(cfg.node_id, t)
                 payload = _build_payload(reading, cfg.node_id)
                 post_reading(payload, cfg)
+
+                # Ask ML service for irrigation decision
+                decision = ask_ml_service(reading, cfg.node_id)
+                if decision:
+                    label     = decision["decision"]
+                    pump_on   = decision["pumpCommand"]
+                    conf      = decision["confidence"] * 100
+                    pump_str  = "ON " if pump_on else "OFF"
+                    log.info(
+                        "ML → Arduino (simulated): CMD:PUMP=%s:%s  confidence=%.0f%%",
+                        "1" if pump_on else "0", label, conf,
+                    )
+                    # In simulation mode there is no physical serial port,
+                    # so we log the command that would have been sent.
+                    log.info(
+                        "  [SIM] Would send: CMD:PUMP=%s:%s  Pump would be %s",
+                        "1" if pump_on else "0", label, pump_str,
+                    )
+
                 record_count += 1
                 log.info("Records sent this session: %d", record_count)
                 time.sleep(cfg.interval_ms / 1000.0)
@@ -676,6 +755,21 @@ def main() -> None:
                 converted = convert_units(parsed, cfg.calibration)
                 payload = _build_payload(converted, cfg.node_id)
                 post_reading(payload, cfg)
+
+                # Ask ML service and send decision back to Arduino over USB serial
+                decision = ask_ml_service(converted, cfg.node_id)
+                if decision:
+                    label    = decision["decision"]
+                    pump_on  = decision["pumpCommand"]
+                    conf     = decision["confidence"] * 100
+                    log.info(
+                        "ML → Arduino: CMD:PUMP=%s:%s  confidence=%.0f%%  relay=%s",
+                        "1" if pump_on else "0", label, conf,
+                        "ON" if pump_on else "OFF",
+                    )
+                    # Send full command with decision label so Arduino can log it
+                    send_pump_command(ser, pump_on, label)
+
                 record_count += 1
                 log.info("Records sent this session: %d", record_count)
         except KeyboardInterrupt:

@@ -16,9 +16,12 @@ sns.set_theme(style="whitegrid", palette="muted")
 df = pd.read_csv("data/cleaned.csv", parse_dates=["timestamp"])
 
 # -- Plot 1: Sensor distribution histograms --------------------------------
-fig, axes = plt.subplots(2, 4, figsize=(18, 9))
+# reservoirLevel is excluded here — it has a dedicated dual-axis plot (Plot 5)
+# and its depletion-dominated distribution adds no extra insight in a histogram.
+DIST_SENSORS = [s for s in SENSORS if s != "reservoirLevel"]
+fig, axes = plt.subplots(2, 3, figsize=(16, 9))
 fig.suptitle("AquaSense - Sensor Value Distributions (Cleaned Data)", fontsize=14, fontweight="bold")
-for ax, col in zip(axes.flatten(), SENSORS):
+for ax, col in zip(axes.flatten(), DIST_SENSORS):
     ax.hist(df[col], bins=60, color="steelblue", edgecolor="white", linewidth=0.4)
     ax.set_title(col, fontsize=10, fontweight="bold")
     ax.set_xlabel("Value")

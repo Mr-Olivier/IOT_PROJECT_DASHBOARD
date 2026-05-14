@@ -32,12 +32,18 @@ X = df[FEATURES]
 y_cls = df[TARGET_CLASS]
 y_reg = df[TARGET_REG]
 
+# Only encode the classes that are present in the data (keep natural order)
+present_classes = [c for c in ORDERED if c in set(y_cls)]
 le = LabelEncoder()
-le.fit(ORDERED)
+le.fit(present_classes)
 y_enc = le.transform(y_cls)
 
+# Only stratify when every class has enough samples for a split
+class_counts = pd.Series(y_enc).value_counts()
+do_stratify = (class_counts >= 5).all()
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y_enc, test_size=0.2, random_state=42, stratify=y_enc
+    X, y_enc, test_size=0.2, random_state=42,
+    stratify=y_enc if do_stratify else None
 )
 X_train_r, X_test_r, yr_train, yr_test = train_test_split(
     X, y_reg, test_size=0.2, random_state=42
@@ -76,7 +82,7 @@ best_clf = clf_models["Random Forest"]
 y_pred_rf = best_clf.predict(X_test_s)
 cm = confusion_matrix(y_test, y_pred_rf)
 fig, ax = plt.subplots(figsize=(8, 6))
-disp = ConfusionMatrixDisplay(cm, display_labels=le.classes_)
+disp = ConfusionMatrixDisplay(cm, display_labels=le.classes_)  # only present classes
 disp.plot(ax=ax, colorbar=True, cmap="Blues")
 ax.set_title("Random Forest - Confusion Matrix (soilMoisture_class)", fontweight="bold")
 plt.tight_layout()

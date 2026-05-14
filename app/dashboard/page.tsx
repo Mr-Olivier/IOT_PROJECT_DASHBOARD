@@ -25,6 +25,10 @@ import {
   Activity,
   Radio,
   BookOpen,
+  Brain,
+  ArrowRight,
+  Droplets,
+  ShieldOff,
 } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -52,6 +56,46 @@ export default async function DashboardPage() {
     prisma.alert.count(),
     prisma.sensorReading.count(),
   ])
+
+  // ── ML decisions for the AI panel ───────────────────────────────────────
+  const [mlDecisions, mlStatus] = await Promise.all([
+    prisma.irrigationDecision.findMany({
+      orderBy: { timestamp: 'desc' },
+      take: 50,
+      select: {
+        id: true, timestamp: true, nodeId: true, decision: true,
+        confidence: true, pumpCommand: true, soilMoisture: true,
+        temperature: true, humidity: true, reservoirLevel: true,
+        modelVersion: true,
+      },
+    }),
+    fetch('http://localhost:5001/status', { cache: 'no-store' })
+      .then((r) => r.json())
+      .catch(() => null),
+  ])
+
+  const [irrigateCount, holdCount, lowWaterCount] = await Promise.all([
+    prisma.irrigationDecision.count({ where: { decision: 'IRRIGATE' } }),
+    prisma.irrigationDecision.count({ where: { decision: 'HOLD' } }),
+    prisma.irrigationDecision.count({ where: { decision: 'LOW_WATER' } }),
+  ])
+
+  type MLDecision = 'IRRIGATE' | 'HOLD' | 'LOW_WATER'
+  const toMLRow = (d: (typeof mlDecisions)[number]) => ({
+    ...d,
+    timestamp: d.timestamp.toISOString(),
+    decision:  d.decision as MLDecision,
+  })
+  const mlDecisionsPayload = {
+    latest:  mlDecisions[0] ? toMLRow(mlDecisions[0]) : null,
+    history: mlDecisions.map(toMLRow),
+    counts:  {
+      IRRIGATE:  irrigateCount,
+      HOLD:      holdCount,
+      LOW_WATER: lowWaterCount,
+      total:     irrigateCount + holdCount + lowWaterCount,
+    },
+  }
 
   // ── Classification stats (§10) ────────────────────────────────────────────
   const classStats = activeNodes[0]
@@ -338,7 +382,20 @@ export default async function DashboardPage() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            SECTION 4 — NODE CARDS + PUMP CONTROL
+            SECTION 5 — AI/ML SUMMARY CARD (links to /ml for full page)
+        ══════════════════════════════════════════════════════════════════ */}
+        <section>
+          <SectionHeader
+            title="AI Irrigation Intelligence"
+            subtitle="Random Forest model decides IRRIGATE / HOLD / LOW_WATER and commands the pump relay in real time"
+            badge="Live ML"
+            badgeColor="emerald"
+          />
+          <MLSummaryCard latest={mlDecisionsPayload.latest} counts={mlDecisionsPayload.counts} mlStatus={mlStatus} />
+        </section>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            SECTION 6 — NODE CARDS + PUMP CONTROL
         ══════════════════════════════════════════════════════════════════ */}
         <section>
           <SectionHeader
@@ -395,6 +452,103 @@ function SectionHeader({
           <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
         )}
       </div>
+    </div>
+  )
+}
+
+// ─── ML summary card (compact — links to /ml for the full page) ──────────────
+
+type MLSummaryLatest = {
+  decision: string; confidence: number; pumpCommand: boolean;
+  soilMoisture: number; reservoirLevel: number; timestamp: string
+} | null
+
+type MLSummaryStatus = { metrics?: { accuracy: number; f1: number } } | null
+
+function MLSummaryCard({
+  latest, counts, mlStatus,
+}: {
+  latest: MLSummaryLatest
+  counts: { IRRIGATE: number; HOLD: number; LOW_WATER: number; total: number }
+  mlStatus: MLSummaryStatus
+}) {
+  const DECISION_STYLES: Record<string, { bg: string; text: string; border: string; icon: typeof Brain }> = {
+    IRRIGATE:  { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    icon: Droplets },
+    HOLD:      { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: ShieldOff },
+    LOW_WATER: { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   icon: Brain },
+  }
+  const s = latest ? (DECISION_STYLES[latest.decision] ?? DECISION_STYLES.HOLD) : null
+  const DecIcon = s?.icon ?? Brain
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+      <div className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+
+        {/* Current decision */}
+        <div className="flex items-center gap-4 flex-1">
+          <div className={`p-3 rounded-2xl ${s?.bg ?? 'bg-violet-50'}`}>
+            <DecIcon size={22} className={s?.text ?? 'text-violet-500'} />
+          </div>
+          {latest ? (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Current Decision</p>
+              <p className={`text-2xl font-extrabold ${s?.text}`}>
+                {latest.decision === 'LOW_WATER' ? 'LOW WATER' : latest.decision}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {(latest.confidence * 100).toFixed(0)}% confidence &nbsp;·&nbsp;
+                Pump {latest.pumpCommand ? 'ON' : 'OFF'} &nbsp;·&nbsp;
+                Soil {latest.soilMoisture.toFixed(0)}% &nbsp;·&nbsp;
+                Reservoir {latest.reservoirLevel.toFixed(0)}%
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Current Decision</p>
+              <p className="text-sm text-gray-400">No decisions yet</p>
+            </div>
+          )}
+        </div>
+
+        {/* Metrics pills */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {mlStatus?.metrics && (
+            <>
+              <div className="bg-violet-50 border border-violet-100 rounded-xl px-3 py-1.5 text-center">
+                <p className="text-[10px] text-violet-400 font-semibold">Accuracy</p>
+                <p className="text-base font-extrabold text-violet-700">{(mlStatus.metrics.accuracy * 100).toFixed(1)}%</p>
+              </div>
+              <div className="bg-sky-50 border border-sky-100 rounded-xl px-3 py-1.5 text-center">
+                <p className="text-[10px] text-sky-400 font-semibold">F1 Score</p>
+                <p className="text-base font-extrabold text-sky-700">{(mlStatus.metrics.f1 * 100).toFixed(1)}%</p>
+              </div>
+            </>
+          )}
+          <div className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 text-center">
+            <p className="text-[10px] text-gray-400 font-semibold">Decisions</p>
+            <p className="text-base font-extrabold text-gray-700">{counts.total.toLocaleString()}</p>
+          </div>
+        </div>
+
+        {/* Link to full page */}
+        <Link
+          href="/ml"
+          className="flex items-center gap-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm shadow-violet-200 hover:shadow-md hover:shadow-violet-200 hover:scale-105 transition-all duration-150 shrink-0"
+        >
+          <Brain size={14} />
+          Full AI Analysis
+          <ArrowRight size={12} />
+        </Link>
+      </div>
+
+      {/* Distribution bar */}
+      {counts.total > 0 && (
+        <div className="flex h-1.5 w-full">
+          <div className="bg-emerald-400 transition-all" style={{ width: `${(counts.HOLD / counts.total) * 100}%` }} />
+          <div className="bg-blue-400 transition-all"    style={{ width: `${(counts.IRRIGATE / counts.total) * 100}%` }} />
+          <div className="bg-amber-400 transition-all"   style={{ width: `${(counts.LOW_WATER / counts.total) * 100}%` }} />
+        </div>
+      )}
     </div>
   )
 }

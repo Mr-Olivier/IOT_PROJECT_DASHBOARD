@@ -1,6 +1,6 @@
 model,mean_f1,std,min_f1,max_f1
-Random Forest,0.4119,0.0039,0.4049,0.4158
-Decision Tree,0.3788,0.005,0.371,0.3855
-Naive Bayes,0.3597,0.0019,0.3568,0.3623
-Gradient Boosting,0.3403,0.0008,0.3394,0.3411
-Logistic Regression,0.3314,0.0005,0.3306,0.3322
+Random Forest,0.9499,0.0079,0.9354,0.9589
+Gradient Boosting,0.9355,0.0101,0.9213,0.9496
+Decision Tree,0.9302,0.0171,0.9054,0.9505
+Naive Bayes,0.7712,0.0126,0.7576,0.7936
+Logistic Regression,0.7602,0.0214,0.7268,0.7854

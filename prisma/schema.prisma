@@ -95,3 +95,23 @@ model MLPrediction {
   inputFeatures Json
   isStale       Boolean  @default(false)
 }
+
+model IrrigationDecision {
+  id             String   @id @default(cuid())
+  timestamp      DateTime @default(now())
+  nodeId         String?
+  decision       String   // "IRRIGATE" | "HOLD" | "LOW_WATER"
+  confidence     Float
+  pumpCommand    Boolean
+  soilMoisture   Float
+  temperature    Float
+  humidity       Float
+  reservoirLevel Float
+  nitrogen       Float?
+  phosphorus     Float?
+  potassium      Float?
+  modelVersion   String   @default("rf-v1")
+
+  @@index([timestamp])
+  @@index([nodeId, timestamp])
+}

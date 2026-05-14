@@ -23,9 +23,10 @@ FEATURES = ["temperature", "humidity", "reservoirLevel",
             "nitrogen", "phosphorus", "potassium"]
 
 X = df[FEATURES]
-le = LabelEncoder()
 ORDERED = ["criticalLow", "low", "optimal", "high", "criticalHigh"]
-le.fit(ORDERED)
+present_classes = [c for c in ORDERED if c in set(df["soilMoisture_class"])]
+le = LabelEncoder()
+le.fit(present_classes)
 y = le.transform(df["soilMoisture_class"])
 
 scaler = StandardScaler()

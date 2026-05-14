@@ -13,34 +13,6 @@ const NODES = [
   { slug: 'node-2', name: 'Field Node B', zone: 'Zone 2 — South Field' },
 ]
 
-// How many historical readings to generate per node (spread over last 7 days)
-const READINGS_PER_NODE = 168 // one per hour for 7 days
-
-function randomBetween(min: number, max: number, decimals = 1) {
-  return parseFloat((Math.random() * (max - min) + min).toFixed(decimals))
-}
-
-function generateReadings(nodeId: string) {
-  const now = Date.now()
-  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000
-  const intervalMs = sevenDaysMs / READINGS_PER_NODE
-
-  return Array.from({ length: READINGS_PER_NODE }, (_, i) => {
-    const timestamp = new Date(now - sevenDaysMs + i * intervalMs)
-    // Simulate realistic sensor values with slight variation
-    const hourOfDay = timestamp.getHours()
-    const tempBase = hourOfDay >= 10 && hourOfDay <= 16 ? 32 : 24 // hotter midday
-    return {
-      nodeId,
-      timestamp,
-      soilMoisture: randomBetween(25, 75),
-      temperature: randomBetween(tempBase - 3, tempBase + 3),
-      humidity: randomBetween(45, 85),
-      reservoirLevel: randomBetween(60, 95),
-      ph: randomBetween(5.5, 7.5, 2),
-    }
-  })
-}
 
 async function main() {
   console.log('🌱 Seeding AquaSense demo data...\n')
@@ -53,16 +25,6 @@ async function main() {
       create: { slug: n.slug, name: n.name, zone: n.zone, apiKeyHash: API_KEY_HASH, isActive: true },
     })
     console.log(`✅ Node created: ${n.name} (slug: ${n.slug})`)
-  }
-
-  // Get node IDs
-  const nodes = await prisma.sensorNode.findMany({ where: { slug: { in: NODES.map((n) => n.slug) } } })
-
-  // Insert readings for each node
-  for (const node of nodes) {
-    const readings = generateReadings(node.id)
-    await prisma.sensorReading.createMany({ data: readings, skipDuplicates: true })
-    console.log(`📊 Inserted ${readings.length} readings for ${node.name}`)
   }
 
   // Seed some thresholds (global)
@@ -82,13 +44,10 @@ async function main() {
   }
   console.log('⚙️  Global thresholds seeded')
 
-  console.log('\n✨ Done! Use this API key to send readings:')
+  console.log('\n✨ Nodes and thresholds ready.')
   console.log(`   API Key: ${API_KEY}`)
-  console.log('\n📡 Example curl command:')
-  console.log(`   curl -X POST http://localhost:3000/api/ingest \\`)
-  console.log(`     -H "Content-Type: application/json" \\`)
-  console.log(`     -H "x-api-key: ${API_KEY}" \\`)
-  console.log(`     -d '{"nodeId":"node-1","timestamp":"${new Date().toISOString()}","soilMoisture":42,"temperature":28.5,"humidity":65,"reservoirLevel":80,"ph":6.8}'`)
+  console.log('\n▶  Next step — seed 100,000 historical readings (March 5 → April 7 2026):')
+  console.log('   node prisma/seed_historical.js')
 }
 
 main()
